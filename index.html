@@ -3,167 +3,79 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Shawonflix - Premium Player</title>
-
-<!-- External Libraries (Must be here for m3u8 support) -->
+<title>Shawonflix - Pro Player</title>
 <script src="https://cdn.jsdelivr.net/npm/artplayer/dist/artplayer.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
-
 <style>
-* { margin: 0; padding: 0; box-sizing: border-box; }
-html, body { width: 100%; height: 100%; background: #000; font-family: system-ui, sans-serif; color: #fff; overflow: hidden; }
-
-/* Premium Loader Styles */
-#loader {
-  position: fixed; inset: 0; display: flex; flex-direction: column;
-  align-items: center; justify-content: center; gap: 28px; background: #000; z-index: 999;
-}
-#loader-bg {
-  position: absolute; inset: 0;
-  background-size: cover; background-position: center;
-  transition: opacity .8s ease; opacity: 0;
-}
-.spinner {
-  position: relative; z-index: 1;
-  width: 60px; height: 60px;
-  border: 4px solid rgba(255,255,255,.1);
-  border-top-color: #ff0000; border-radius: 50%;
-  animation: spin .8s linear infinite;
-}
-@keyframes spin { to { transform: rotate(360deg); } }
-#loader-text { position: relative; z-index: 1; font-size: .9rem; color: rgba(255,255,255,.7); letter-spacing: 1px; text-transform: uppercase; }
-
-/* Player Container */
-#artplayer { width: 100%; height: 100vh; display: none; }
-
-/* Error & Usage Screen */
-#usage, #err {
-  position: fixed; inset: 0; display: none; flex-direction: column;
-  align-items: center; justify-content: center; text-align: center; background: #000; padding: 20px;
-}
-.btn-alt { margin-top: 20px; padding: 10px 20px; background: #ff0000; color: #fff; text-decoration: none; border-radius: 5px; font-weight: bold; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body, html { width: 100%; height: 100%; background: #000; overflow: hidden; font-family: sans-serif; }
+    #player { width: 100%; height: 100vh; display: none; }
+    #status { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; color: #fff; text-align: center; z-index: 10; }
+    .loader { border: 4px solid #333; border-top: 4px solid #ff0000; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin-bottom: 10px; }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 </style>
 </head>
 <body>
 
-<!-- 1. Loader Section -->
-<div id="loader">
-  <div id="loader-bg"></div>
-  <div class="spinner"></div>
-  <div id="loader-text">Initializing...</div>
+<div id="status">
+    <div>
+        <div class="loader" style="margin: 0 auto 15px;"></div>
+        <div id="status-text">Connecting to Shawonflix Server...</div>
+    </div>
 </div>
 
-<!-- 2. Usage Section -->
-<div id="usage">
-  <h2 style="margin-bottom: 20px;">Shawonflix Scraper</h2>
-  <p style="color: #aaa;">Please provide a TMDB ID in the URL:</p>
-  <code style="display:block; margin-top:10px; background:#222; padding:10px;">?id=550</code>
-</div>
-
-<!-- 3. Error Section -->
-<div id="err">
-  <h1 style="color: #ff4444;">Video Error</h1>
-  <p id="err-detail" style="margin: 15px 0; color: #ccc;"></p>
-  <a id="err-link" class="btn-alt" href="#">Switch to Vidsrc</a>
-</div>
-
-<!-- 4. ArtPlayer Container -->
-<div id="artplayer"></div>
+<div id="player"></div>
 
 <script>
-// --- Configuration ---
-const TMDB_KEY = '3a73619bbb8fc6d47742d1b5b2b707b5';
-const MESSAGES = ['Loading stream...', 'Bribing the servers...', 'Decoding the matrix...', 'Almost there...'];
-
-// --- Setup Elements ---
-const loader = document.getElementById('loader');
-const loaderText = document.getElementById('loader-text');
-const artContainer = document.getElementById('artplayer');
 const urlParams = new URLSearchParams(window.location.search);
-const id = urlParams.get('id'), s = urlParams.get('s'), e = urlParams.get('e');
+const id = urlParams.get('id');
+const s = urlParams.get('s');
+const e = urlParams.get('e');
+const statusText = document.getElementById('status-text');
 
-// --- Functions ---
-
-function updateLoaderMsg() {
-    let idx = 0;
-    setInterval(() => {
-        idx = (idx + 1) % MESSAGES.length;
-        loaderText.textContent = MESSAGES[idx];
-    }, 2000);
-}
-
-function showError(msg) {
-    loader.style.display = 'none';
-    document.getElementById('err').style.display = 'flex';
-    document.getElementById('err-detail').textContent = msg;
-    const altUrl = s 
-        ? `https://vidsrc.xyz/embed/tv?tmdb=${id}&season=${s}&episode=${e||1}`
-        : `https://vidsrc.xyz/embed/movie?tmdb=${id}`;
-    document.getElementById('err-link').href = altUrl;
-}
-
-async function loadBackdrop(tmdbId, isTv) {
-    try {
-        const res = await fetch(`https://api.themoviedb.org/3/${isTv?'tv':'movie'}/${tmdbId}?api_key=${TMDB_KEY}`);
-        const data = await res.json();
-        const img = data.backdrop_path || data.poster_path;
-        if (img) {
-            const url = `https://wsrv.nl/?url=https://image.tmdb.org/t/p/w1280${img}&bg=black&blur=3`;
-            const bg = document.getElementById('loader-bg');
-            bg.style.backgroundImage = `url(${url})`;
-            bg.style.opacity = '1';
-        }
-    } catch (e) {}
-}
-
-async function startScraper() {
+async function startEngine() {
     if (!id) {
-        loader.style.display = 'none';
-        document.getElementById('usage').style.display = 'flex';
+        statusText.innerHTML = "Error: ID missing!<br>Use ?id=550";
         return;
     }
 
-    updateLoaderMsg();
-    loadBackdrop(id, !!s);
-
     try {
-        // Calling your Vercel Scraper API
-        const apiPath = `/api?id=${id}${s ? `&s=${s}&e=${e||1}` : ''}`;
-        const res = await fetch(apiPath);
-        const data = await res.json();
-
+        // Step 1: Scraper theke link ana
+        // Amra relative path use korchi jeno Render/Vercel e shubidha hoy
+        const response = await fetch(`./api?id=${id}${s ? `&s=${s}&e=${e||1}` : ''}`);
+        
+        if (!response.ok) throw new Error("Server Response Not OK");
+        
+        const data = await response.json();
+        
         if (data.url) {
-            initPlayer(data.url);
+            statusText.innerText = "Stream Found! Initializing Player...";
+            initArtPlayer(data.url);
         } else {
-            showError("Stream link not found in API response.");
+            throw new Error("Link Not Found in Database");
         }
     } catch (err) {
-        showError("Failed to fetch data from scraper.");
+        console.error(err);
+        statusText.innerHTML = `<span style="color:#ff4444">Failed to fetch data.</span><br><small>${err.message}</small>`;
     }
 }
 
-function initPlayer(m3u8Url) {
-    // We proxy the final m3u8 URL through our scraper again to bypass CORS
-    const proxiedUrl = `/api?url=${encodeURIComponent(m3u8Url)}`;
+function initArtPlayer(videoUrl) {
+    // CORS bypass korar jonno amra amader scraper proxy-tei pathabo
+    const finalStreamUrl = `./api?url=${encodeURIComponent(videoUrl)}`;
 
     const art = new ArtPlayer({
-        container: '#artplayer',
-        url: proxiedUrl,
+        container: '#player',
+        url: finalStreamUrl,
         type: 'm3u8',
         autoplay: true,
         autoSize: true,
         fullscreen: true,
-        fullscreenWeb: true,
         setting: true,
         pip: true,
-        playbackRate: true,
-        aspectRatio: true,
-        theme: '#ff0000', // Red theme like YouTube/Netflix
-        icons: {
-            loading: '<img src="https://artplayer.org/assets/img/ploading.gif">',
-        },
+        theme: '#ff0000',
         customType: {
-            m3u8: function (video, url) {
+            m3u8: function(video, url) {
                 if (Hls.isSupported()) {
                     const hls = new Hls();
                     hls.loadSource(url);
@@ -176,18 +88,17 @@ function initPlayer(m3u8Url) {
     });
 
     art.on('ready', () => {
-        loader.style.display = 'none';
-        artContainer.style.display = 'block';
+        document.getElementById('status').style.display = 'none';
+        document.getElementById('player').style.display = 'block';
     });
-
-    art.on('error', (err) => {
-        showError("ArtPlayer could not load the stream.");
+    
+    art.on('error', () => {
+        statusText.innerText = "ArtPlayer Error: Cannot Play Stream.";
+        document.getElementById('status').style.display = 'flex';
     });
 }
 
-// Kickstart everything
-startScraper();
-
+startEngine();
 </script>
 </body>
 </html>
