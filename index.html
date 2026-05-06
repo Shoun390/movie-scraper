@@ -3,7 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Shawonflix - Premium Stream</title>
+<title>Shawonflix - Premium Player</title>
+
+<!-- External Libraries (Must be here for m3u8 support) -->
 <script src="https://cdn.jsdelivr.net/npm/artplayer/dist/artplayer.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 
@@ -11,142 +13,181 @@
 * { margin: 0; padding: 0; box-sizing: border-box; }
 html, body { width: 100%; height: 100%; background: #000; font-family: system-ui, sans-serif; color: #fff; overflow: hidden; }
 
+/* Premium Loader Styles */
 #loader {
   position: fixed; inset: 0; display: flex; flex-direction: column;
-  align-items: center; justify-content: center; gap: 28px; background: #000; z-index: 99;
+  align-items: center; justify-content: center; gap: 28px; background: #000; z-index: 999;
 }
 #loader-bg {
   position: absolute; inset: 0;
   background-size: cover; background-position: center;
-  transition: opacity .6s ease; opacity: 0;
+  transition: opacity .8s ease; opacity: 0;
 }
 .spinner {
   position: relative; z-index: 1;
-  width: 72px; height: 72px;
-  border: 5px solid rgba(255,255,255,.15);
-  border-top-color: #fff; border-radius: 50%;
-  animation: spin .9s linear infinite;
+  width: 60px; height: 60px;
+  border: 4px solid rgba(255,255,255,.1);
+  border-top-color: #ff0000; border-radius: 50%;
+  animation: spin .8s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
-#loader-text { position: relative; z-index: 1; font-size: .95rem; color: rgba(255,255,255,.6); letter-spacing: .04em; text-shadow: 0 1px 4px #000; }
+#loader-text { position: relative; z-index: 1; font-size: .9rem; color: rgba(255,255,255,.7); letter-spacing: 1px; text-transform: uppercase; }
 
 /* Player Container */
-#player-container { position: fixed; inset: 0; display: none; background: #000; }
+#artplayer { width: 100%; height: 100vh; display: none; }
 
+/* Error & Usage Screen */
 #usage, #err {
   position: fixed; inset: 0; display: none; flex-direction: column;
-  align-items: center; justify-content: center; text-align: center; background: #000; gap: 10px;
+  align-items: center; justify-content: center; text-align: center; background: #000; padding: 20px;
 }
-#err-title { font-size: 2.4rem; font-weight: 700; color: #fff; margin-bottom: 18px; }
-#err-link { font-size: 1.1rem; color: #60a5fa; text-decoration: underline; cursor: pointer; }
+.btn-alt { margin-top: 20px; padding: 10px 20px; background: #ff0000; color: #fff; text-decoration: none; border-radius: 5px; font-weight: bold; }
 </style>
 </head>
 <body>
 
+<!-- 1. Loader Section -->
 <div id="loader">
   <div id="loader-bg"></div>
   <div class="spinner"></div>
-  <div id="loader-text">Loading stream...</div>
+  <div id="loader-text">Initializing...</div>
 </div>
 
+<!-- 2. Usage Section -->
 <div id="usage">
-  <p>
-    <span style="color:#fff;font-size:1.2rem">Shawonflix Player</span><br><br>
-    <code>?id=TMDB_ID</code><br>
-    <code>?id=TMDB_ID&s=1&e=1</code>
-  </p>
+  <h2 style="margin-bottom: 20px;">Shawonflix Scraper</h2>
+  <p style="color: #aaa;">Please provide a TMDB ID in the URL:</p>
+  <code style="display:block; margin-top:10px; background:#222; padding:10px;">?id=550</code>
 </div>
 
+<!-- 3. Error Section -->
 <div id="err">
-  <div id="err-title">Error Occurred</div>
-  <a id="err-link" href="#">Try Alternative?</a>
-  <div id="err-detail" style="margin-top:20px; color:gray;"></div>
+  <h1 style="color: #ff4444;">Video Error</h1>
+  <p id="err-detail" style="margin: 15px 0; color: #ccc;"></p>
+  <a id="err-link" class="btn-alt" href="#">Switch to Vidsrc</a>
 </div>
 
-<div id="player-container"></div>
+<!-- 4. ArtPlayer Container -->
+<div id="artplayer"></div>
 
 <script>
-var TMDB_KEY = '3a73619bbb8fc6d47742d1b5b2b707b5';
-var msgEl = document.getElementById('loader-text');
-var MESSAGES = ['Loading stream...', 'Bribing the servers...', 'Decoding the matrix...', 'Almost there...'];
-var msgIdx = 0;
-var msgTimer = setInterval(() => {
-  msgIdx = (msgIdx + 1) % MESSAGES.length;
-  msgEl.textContent = MESSAGES[msgIdx];
-}, 2200);
+// --- Configuration ---
+const TMDB_KEY = '3a73619bbb8fc6d47742d1b5b2b707b5';
+const MESSAGES = ['Loading stream...', 'Bribing the servers...', 'Decoding the matrix...', 'Almost there...'];
 
-var p = new URLSearchParams(location.search);
-var id = p.get('id'), s = p.get('s'), e = p.get('e');
+// --- Setup Elements ---
+const loader = document.getElementById('loader');
+const loaderText = document.getElementById('loader-text');
+const artContainer = document.getElementById('artplayer');
+const urlParams = new URLSearchParams(window.location.search);
+const id = urlParams.get('id'), s = urlParams.get('s'), e = urlParams.get('e');
 
-function showErr(msg) {
-  clearInterval(msgTimer);
-  document.getElementById('loader').style.display = 'none';
-  document.getElementById('err').style.display = 'flex';
-  document.getElementById('err-detail').textContent = msg || '';
+// --- Functions ---
+
+function updateLoaderMsg() {
+    let idx = 0;
+    setInterval(() => {
+        idx = (idx + 1) % MESSAGES.length;
+        loaderText.textContent = MESSAGES[idx];
+    }, 2000);
 }
 
-// Backdrop loader logic same rakhlam
-if (id) {
-  fetch(`https://api.themoviedb.org/3/${s?'tv':'movie'}/${id}?api_key=${TMDB_KEY}`)
-    .then(r => r.json()).then(d => {
-      var img = d.backdrop_path || d.poster_path;
-      if (img) {
-        var url = `https://wsrv.nl/?url=https://image.tmdb.org/t/p/w1280${img}&bg=black&blur=3`;
-        var bg = document.getElementById('loader-bg');
-        bg.style.backgroundImage = `url(${url})`;
-        bg.style.opacity = '1';
-      }
+function showError(msg) {
+    loader.style.display = 'none';
+    document.getElementById('err').style.display = 'flex';
+    document.getElementById('err-detail').textContent = msg;
+    const altUrl = s 
+        ? `https://vidsrc.xyz/embed/tv?tmdb=${id}&season=${s}&episode=${e||1}`
+        : `https://vidsrc.xyz/embed/movie?tmdb=${id}`;
+    document.getElementById('err-link').href = altUrl;
+}
+
+async function loadBackdrop(tmdbId, isTv) {
+    try {
+        const res = await fetch(`https://api.themoviedb.org/3/${isTv?'tv':'movie'}/${tmdbId}?api_key=${TMDB_KEY}`);
+        const data = await res.json();
+        const img = data.backdrop_path || data.poster_path;
+        if (img) {
+            const url = `https://wsrv.nl/?url=https://image.tmdb.org/t/p/w1280${img}&bg=black&blur=3`;
+            const bg = document.getElementById('loader-bg');
+            bg.style.backgroundImage = `url(${url})`;
+            bg.style.opacity = '1';
+        }
+    } catch (e) {}
+}
+
+async function startScraper() {
+    if (!id) {
+        loader.style.display = 'none';
+        document.getElementById('usage').style.display = 'flex';
+        return;
+    }
+
+    updateLoaderMsg();
+    loadBackdrop(id, !!s);
+
+    try {
+        // Calling your Vercel Scraper API
+        const apiPath = `/api?id=${id}${s ? `&s=${s}&e=${e||1}` : ''}`;
+        const res = await fetch(apiPath);
+        const data = await res.json();
+
+        if (data.url) {
+            initPlayer(data.url);
+        } else {
+            showError("Stream link not found in API response.");
+        }
+    } catch (err) {
+        showError("Failed to fetch data from scraper.");
+    }
+}
+
+function initPlayer(m3u8Url) {
+    // We proxy the final m3u8 URL through our scraper again to bypass CORS
+    const proxiedUrl = `/api?url=${encodeURIComponent(m3u8Url)}`;
+
+    const art = new ArtPlayer({
+        container: '#artplayer',
+        url: proxiedUrl,
+        type: 'm3u8',
+        autoplay: true,
+        autoSize: true,
+        fullscreen: true,
+        fullscreenWeb: true,
+        setting: true,
+        pip: true,
+        playbackRate: true,
+        aspectRatio: true,
+        theme: '#ff0000', // Red theme like YouTube/Netflix
+        icons: {
+            loading: '<img src="https://artplayer.org/assets/img/ploading.gif">',
+        },
+        customType: {
+            m3u8: function (video, url) {
+                if (Hls.isSupported()) {
+                    const hls = new Hls();
+                    hls.loadSource(url);
+                    hls.attachMedia(video);
+                } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                    video.src = url;
+                }
+            },
+        },
     });
 
-  // API Call to your scraper
-  var apiPath = `/api?id=${id}${s ? `&s=${s}&e=${e||1}` : ''}`;
-  fetch(apiPath)
-    .then(r => r.json())
-    .then(d => {
-      if (d.error) return showErr(d.error);
-      initArtPlayer(d.url);
-    })
-    .catch(err => showErr(err.message));
-} else {
-  document.getElementById('loader').style.display = 'none';
-  document.getElementById('usage').style.display = 'flex';
+    art.on('ready', () => {
+        loader.style.display = 'none';
+        artContainer.style.display = 'block';
+    });
+
+    art.on('error', (err) => {
+        showError("ArtPlayer could not load the stream.");
+    });
 }
 
-function initArtPlayer(rawUrl) {
-  clearInterval(msgTimer);
-  document.getElementById('loader').style.display = 'none';
-  document.getElementById('player-container').style.display = 'block';
+// Kickstart everything
+startScraper();
 
-  // Rewritten Proxy URL for M3U8
-  var finalUrl = `/api?url=${encodeURIComponent(rawUrl)}`;
-
-  var art = new ArtPlayer({
-    container: '#player-container',
-    url: finalUrl,
-    type: 'm3u8',
-    autoplay: true,
-    fullscreen: true,
-    fullscreenWeb: true,
-    setting: true,
-    pip: true,
-    playbackRate: true,
-    aspectRatio: true,
-    autoSize: true,
-    fastForward: true,
-    lock: true,
-    customType: {
-      m3u8: function(video, url) {
-        if (Hls.isSupported()) {
-          const hls = new Hls();
-          hls.loadSource(url);
-          hls.attachMedia(video);
-        } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-          video.src = url;
-        }
-      },
-    },
-  });
-}
 </script>
 </body>
 </html>
