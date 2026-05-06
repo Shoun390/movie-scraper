@@ -4,8 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Stream</title>
+
 <script src="https://cdn.jsdelivr.net/npm/hls.js@latest/dist/hls.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/artplayer/dist/artplayer.js"></script>
+
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 html, body { width: 100%; height: 100%; background: #000; font-family: system-ui, sans-serif; color: #fff; overflow: hidden; }
@@ -15,7 +17,7 @@ html, body { width: 100%; height: 100%; background: #000; font-family: system-ui
 @keyframes spin { to { transform: rotate(360deg); } }
 #loader-text { position: relative; z-index: 1; font-size: .95rem; color: rgba(255,255,255,.6); letter-spacing: .04em; }
 #player { position: fixed; inset: 0; display: none; background: #000; }
-.artplayer-app { width: 100%; height: 100%; }
+#artplayer { width: 100%; height: 100%; }
 #usage, #err { position: fixed; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center; text-align: center; background: #000; gap: 10px; }
 </style>
 </head>
@@ -28,92 +30,116 @@ html, body { width: 100%; height: 100%; background: #000; font-family: system-ui
 </div>
 
 <div id="usage">
-  <p><span style="color:#fff;font-size:1.2rem">Stream</span><br><br><code>?id=550</code></p>
+  <p><span style="color:#fff;font-size:1.2rem">Shawonflix Player</span><br><br><code>?id=550</code></p>
 </div>
 
 <div id="err">
-  <div id="err-title" style="font-size:2rem">Error Occurred</div>
-  <div id="err-detail"></div>
+  <div id="err-title" style="font-size:2rem; color: #ff4444;">Error Occurred</div>
+  <div id="err-detail" style="margin-top: 10px;"></div>
 </div>
 
 <div id="player">
-  <div class="artplayer-app" id="artplayer"></div>
+  <div id="artplayer"></div>
 </div>
 
 <script>
-var TMDB_KEY = '3a73619bbb8fc6d47742d1b5b2b707b5';
-var p = new URLSearchParams(location.search);
-var id = p.get('id'), s = p.get('s'), e = p.get('e');
+window.onload = function() {
+    var TMDB_KEY = '3a73619bbb8fc6d47742d1b5b2b707b5';
+    var p = new URLSearchParams(location.search);
+    var id = p.get('id'), s = p.get('s'), e = p.get('e');
 
-async function loadBackdrop(id, isTv) {
-  try {
-    const r = await fetch(`https://api.themoviedb.org/3/${isTv?'tv':'movie'}/${id}?api_key=${TMDB_KEY}`);
-    const d = await r.json();
-    const img = d.backdrop_path || d.poster_path;
-    if (img) {
-      const url = `https://wsrv.nl/?url=https://image.tmdb.org/t/p/w1280${img}&bg=black&blur=3`;
-      const bg = document.getElementById('loader-bg');
-      bg.style.backgroundImage = `url(${url})`;
-      bg.style.opacity = '1';
-    }
-  } catch(e) {}
-}
-
-async function start() {
-    if (!id) {
-        document.getElementById('loader').style.display = 'none';
-        document.getElementById('usage').style.display = 'flex';
-        return;
-    }
-    loadBackdrop(id, !!s);
-
-    try {
-        // IMPORTANT: Referrer Policy add kora hoyeche bypass korar jonno
-        const api = `./api?id=${id}${s ? `&s=${s}&e=${e||1}` : ''}`;
-        const res = await fetch(api, { referrerPolicy: "no-referrer" });
-        const data = await res.json();
-        
-        if (data.url) {
-            initPlayer(data.url);
-        } else {
-            throw new Error(data.error || "Not Found");
+    async function loadBackdrop(id, isTv) {
+      try {
+        const r = await fetch(`https://api.themoviedb.org/3/${isTv?'tv':'movie'}/${id}?api_key=${TMDB_KEY}`);
+        const d = await r.json();
+        const img = d.backdrop_path || d.poster_path;
+        if (img) {
+          const url = `https://wsrv.nl/?url=https://image.tmdb.org/t/p/w1280${img}&bg=black&blur=3`;
+          const bg = document.getElementById('loader-bg');
+          bg.style.backgroundImage = `url(${url})`;
+          bg.style.opacity = '1';
         }
-    } catch (err) {
-        document.getElementById('loader').style.display = 'none';
-        document.getElementById('err').style.display = 'flex';
-        document.getElementById('err-detail').textContent = err.message;
+      } catch(e) {}
     }
-}
 
-function initPlayer(rawUrl) {
-    // URL-ta ke proxy path-e convert kora
-    const finalUrl = `./api?url=${encodeURIComponent(rawUrl)}`;
+    async function start() {
+        if (!id) {
+            document.getElementById('loader').style.display = 'none';
+            document.getElementById('usage').style.display = 'flex';
+            return;
+        }
+        loadBackdrop(id, !!s);
 
-    const art = new ArtPlayer({
-        container: '#artplayer',
-        url: finalUrl,
-        type: 'm3u8',
-        autoplay: true,
-        fullscreen: true,
-        theme: '#ff0000',
-        customType: {
-            m3u8: function (video, url) {
-                if (Hls.isSupported()) {
-                    const hls = new Hls();
-                    hls.loadSource(url);
-                    hls.attachMedia(video);
-                    hls.on(Hls.Events.MANIFEST_PARSED, () => {
-                        document.getElementById('loader').style.display = 'none';
-                        document.getElementById('player').style.display = 'block';
-                        video.play();
-                    });
+        try {
+            const api = `./api?id=${id}${s ? `&s=${s}&e=${e||1}` : ''}`;
+            const res = await fetch(api);
+            const data = await res.json();
+            
+            if (data.url) {
+                initPlayer(data.url);
+            } else {
+                throw new Error(data.error || "Content not found in scraper.");
+            }
+        } catch (err) {
+            document.getElementById('loader').style.display = 'none';
+            document.getElementById('err').style.display = 'flex';
+            document.getElementById('err-detail').textContent = err.message;
+        }
+    }
+
+    function initPlayer(rawUrl) {
+        // Double check j ArtPlayer load hoyeche kina
+        if (typeof ArtPlayer === 'undefined') {
+            document.getElementById('err-detail').textContent = "Library not loaded. Please refresh.";
+            return;
+        }
+
+        const finalUrl = `./api?url=${encodeURIComponent(rawUrl)}`;
+
+        const art = new ArtPlayer({
+            container: '#artplayer',
+            url: finalUrl,
+            type: 'm3u8',
+            autoplay: true,
+            fullscreen: true,
+            fullscreenWeb: true,
+            theme: '#ff0000',
+            setting: true,
+            pip: true,
+            playbackRate: true,
+            aspectRatio: true,
+            customType: {
+                m3u8: function (video, url) {
+                    if (Hls.isSupported()) {
+                        const hls = new Hls();
+                        hls.loadSource(url);
+                        hls.attachMedia(video);
+                        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+                            document.getElementById('loader').style.display = 'none';
+                            document.getElementById('player').style.display = 'block';
+                            video.play().catch(e => {});
+                        });
+                    } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                        video.src = url;
+                        video.addEventListener('canplay', () => {
+                            document.getElementById('loader').style.display = 'none';
+                            document.getElementById('player').style.display = 'block';
+                            video.play();
+                        }, { once: true });
+                    }
                 }
             }
-        }
-    });
-}
+        });
 
-start();
+        art.on('error', (err) => {
+            document.getElementById('loader').style.display = 'none';
+            document.getElementById('err').style.display = 'flex';
+            document.getElementById('err-detail').textContent = "Stream load failed.";
+        });
+    }
+
+    start();
+};
 </script>
 </body>
 </html>
