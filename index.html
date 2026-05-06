@@ -30,9 +30,7 @@ html, body { width: 100%; height: 100%; background: #000; font-family: system-ui
 @keyframes spin { to { transform: rotate(360deg); } }
 #loader-text { position: relative; z-index: 1; font-size: .95rem; color: rgba(255,255,255,.6); letter-spacing: .04em; text-shadow: 0 1px 4px #000; }
 
-/* Player container styling apnar tai rakhlam */
 #player { position: fixed; inset: 0; display: none; background: #000; }
-/* Video tag replace hoye ArtPlayer container hobe */
 .artplayer-app { width: 100%; height: 100%; }
 
 #usage {
@@ -86,11 +84,7 @@ html, body { width: 100%; height: 100%; background: #000; font-family: system-ui
 var TMDB_KEY = '3a73619bbb8fc6d47742d1b5b2b707b5';
 
 var MESSAGES = [
-  'Loading stream...', 'Contacting the mothership...', 'Bribing the servers...',
-  'Untangling the cables...', 'Asking nicely...', 'Decoding the matrix...',
-  'Warming up the hamsters...', 'Negotiating with the cloud...', 'Almost there...',
-  'Convincing pixels to move...', 'Poking the API...', 'Summoning bandwidth...',
-  'Greasing the pipes...', 'Waking up the interns...', 'Stealing the stream (legally)...'
+  'Loading stream...', 'Bribing the servers...', 'Asking nicely...', 'Almost there...'
 ];
 var msgEl = document.getElementById('loader-text');
 var msgIdx = 0;
@@ -135,26 +129,39 @@ function loadBackdrop(id, isTv) {
     .catch(function() {});
 }
 
-if (!id) {
-  clearInterval(msgTimer);
-  document.getElementById('loader').style.display = 'none';
-  document.getElementById('usage').style.display = 'flex';
-} else {
-  loadBackdrop(id, !!s);
-  var api = '/api?' + (s ? 'id='+id+'&s='+s+'&e='+(e||'1') : 'id='+id);
-  fetch(api)
-    .then(function(r) { return r.json(); })
-    .then(function(d) {
-      if (d.error) return showErr(d.error);
-      play(d.url);
-    })
-    .catch(function(err) { showErr(err.message); });
+// Scraper call function with a small delay
+async function startScraper() {
+    if (!id) {
+        clearInterval(msgTimer);
+        document.getElementById('loader').style.display = 'none';
+        document.getElementById('usage').style.display = 'flex';
+        return;
+    }
+
+    loadBackdrop(id, !!s);
+    
+    // Server ke file load korar jonno 1 second somoy deya
+    await new Promise(r => setTimeout(r, 1000));
+
+    var api = './api?' + (s ? 'id='+id+'&s='+s+'&e='+(e||'1') : 'id='+id);
+    
+    try {
+        const res = await fetch(api);
+        const data = await res.json();
+        
+        if (data.url) {
+            play(data.url);
+        } else {
+            showErr(data.error || "Content not found in scraper database.");
+        }
+    } catch (err) {
+        showErr("Connection failed: " + err.message);
+    }
 }
 
 function play(rawUrl) {
-  var src = '/api?url=' + encodeURIComponent(rawUrl);
+  var src = './api?url=' + encodeURIComponent(rawUrl);
   
-  // ArtPlayer Initialization (Ager video tag er bodole)
   var art = new ArtPlayer({
     container: '#artplayer',
     url: src,
@@ -166,7 +173,10 @@ function play(rawUrl) {
     pip: true,
     playbackRate: true,
     aspectRatio: true,
-    theme: '#fff',
+    theme: '#ff0000',
+    icons: {
+        loading: '<img width="64" height="64" src="https://artplayer.org/assets/img/ploading.gif">',
+    },
     customType: {
       m3u8: function (video, url) {
         if (Hls.isSupported()) {
@@ -189,9 +199,12 @@ function play(rawUrl) {
   });
 
   art.on('error', function(err) {
-    showErr("Player Error or Video Not Found");
+    showErr("Video link expired or blocked.");
   });
 }
+
+// Kick off
+startScraper();
 </script>
 </body>
 </html>
