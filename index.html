@@ -11,26 +11,60 @@
 <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 
 <style>
-* { margin: 0; padding: 0; box-sizing: border-box; }
-html, body { width: 100%; height: 100%; background: #000; font-family: system-ui, sans-serif; color: #fff; overflow: hidden; }
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  background: #000;
+  font-family: system-ui, sans-serif;
+  color: #fff;
+  overflow: hidden;
+}
+
+/* Loader */
 
 #loader {
-  position: fixed; inset: 0; display: flex; flex-direction: column;
-  align-items: center; justify-content: center; gap: 28px; background: #000;
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 28px;
+  background: #000;
 }
+
 #loader-bg {
-  position: absolute; inset: 0;
-  background-size: cover; background-position: center;
-  transition: opacity .6s ease; opacity: 0;
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  transition: opacity .6s ease;
+  opacity: 0;
 }
+
 .spinner {
-  position: relative; z-index: 1;
-  width: 72px; height: 72px;
+  position: relative;
+  z-index: 1;
+  width: 72px;
+  height: 72px;
   border: 5px solid rgba(255,255,255,.15);
-  border-top-color: #fff; border-radius: 50%;
+  border-top-color: #fff;
+  border-radius: 50%;
   animation: spin .9s linear infinite;
 }
-@keyframes spin { to { transform: rotate(360deg); } }
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
 
 #loader-text {
   position: relative;
@@ -41,7 +75,8 @@ html, body { width: 100%; height: 100%; background: #000; font-family: system-ui
   text-shadow: 0 1px 4px #000;
 }
 
-/* Player Container */
+/* Player */
+
 #player {
   position: fixed;
   inset: 0;
@@ -49,23 +84,51 @@ html, body { width: 100%; height: 100%; background: #000; font-family: system-ui
   background: #000;
 }
 
-#artplayer {
-  width: 100vw;
-  height: 100vh;
+#artplayer,
+.art-video-player {
+  width: 100vw !important;
+  height: 100vh !important;
 }
+
+/* Usage */
 
 #usage {
-  position: fixed; inset: 0; display: none; flex-direction: column;
-  align-items: center; justify-content: center; text-align: center;
-  background: #000; gap: 10px;
+  position: fixed;
+  inset: 0;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  background: #000;
+  gap: 10px;
 }
-#usage p { font-size: 1.05rem; color: rgba(255,255,255,.65); line-height: 2; }
+
+#usage p {
+  font-size: 1.05rem;
+  color: rgba(255,255,255,.65);
+  line-height: 2;
+}
+
+/* Error */
 
 #err {
-  position: fixed; inset: 0; display: none; flex-direction: column;
-  align-items: center; justify-content: center; text-align: center; background: #000;
+  position: fixed;
+  inset: 0;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  background: #000;
 }
-#err-title { font-size: 2.4rem; font-weight: 700; color: #fff; margin-bottom: 18px; }
+
+#err-title {
+  font-size: 2.4rem;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 18px;
+}
 
 #err-link {
   font-size: 1.1rem;
@@ -74,7 +137,9 @@ html, body { width: 100%; height: 100%; background: #000; font-family: system-ui
   cursor: pointer;
 }
 
-#err-link:hover { color: #93c5fd; }
+#err-link:hover {
+  color: #93c5fd;
+}
 
 #err-detail {
   position: absolute;
@@ -92,31 +157,54 @@ html, body { width: 100%; height: 100%; background: #000; font-family: system-ui
 </head>
 <body>
 
+<!-- Loader -->
+
 <div id="loader">
   <div id="loader-bg"></div>
   <div class="spinner"></div>
   <div id="loader-text">Loading stream...</div>
 </div>
 
+<!-- Usage -->
+
 <div id="usage">
   <p>
     <span style="color:#fff;font-size:1.2rem">Stream</span><br><br>
-    <code style="color:rgba(255,255,255,.8)">?id=550</code> &nbsp;— movie<br>
-    <code style="color:rgba(255,255,255,.8)">?id=456&amp;s=1&amp;e=1</code> &nbsp;— TV episode
+
+    <code style="color:rgba(255,255,255,.8)">
+      ?id=550
+    </code>
+
+    &nbsp;— movie<br>
+
+    <code style="color:rgba(255,255,255,.8)">
+      ?id=456&amp;s=1&amp;e=1
+    </code>
+
+    &nbsp;— TV episode
   </p>
 </div>
 
+<!-- Error -->
+
 <div id="err">
   <div id="err-title">Error Occurred</div>
-  <a id="err-link" href="#">Try vidsrc.xyz instead?</a>
+
+  <a id="err-link" href="#">
+    Try vidsrc.xyz instead?
+  </a>
+
   <div id="err-detail"></div>
 </div>
+
+<!-- Player -->
 
 <div id="player">
   <div id="artplayer"></div>
 </div>
 
 <script>
+
 var TMDB_KEY = '3a73619bbb8fc6d47742d1b5b2b707b5';
 
 var MESSAGES = [
@@ -132,29 +220,44 @@ var MESSAGES = [
 ];
 
 var msgEl = document.getElementById('loader-text');
+
 var msgIdx = 0;
 
-var msgTimer = setInterval(function() {
+var msgTimer = setInterval(function () {
+
   msgIdx = (msgIdx + 1) % MESSAGES.length;
+
   msgEl.textContent = MESSAGES[msgIdx];
+
 }, 2200);
 
 var p = new URLSearchParams(location.search);
 
-var id = p.get('id'),
-    s = p.get('s'),
-    e = p.get('e');
+var id = p.get('id');
+
+var s = p.get('s');
+
+var e = p.get('e');
+
+/* Show Player */
 
 function showPlayer() {
+
   clearInterval(msgTimer);
+
   document.getElementById('loader').style.display = 'none';
+
   document.getElementById('player').style.display = 'block';
 }
 
+/* Show Error */
+
 function showErr(msg) {
+
   clearInterval(msgTimer);
 
   document.getElementById('loader').style.display = 'none';
+
   document.getElementById('err').style.display = 'flex';
 
   document.getElementById('err-detail').textContent = msg || '';
@@ -166,133 +269,268 @@ function showErr(msg) {
   document.getElementById('err-link').href = vidsrcUrl;
 }
 
+/* Backdrop */
+
 function loadBackdrop(id, isTv) {
+
   var type = isTv ? 'tv' : 'movie';
 
-  fetch('https://api.themoviedb.org/3/' + type + '/' + id + '?api_key=' + TMDB_KEY)
-    .then(function(r) { return r.json(); })
-    .then(function(d) {
+  fetch(
+    'https://api.themoviedb.org/3/' +
+    type +
+    '/' +
+    id +
+    '?api_key=' +
+    TMDB_KEY
+  )
 
-      var img = d.backdrop_path || d.poster_path;
-      if (!img) return;
+  .then(function (r) {
 
-      var url =
-        'https://wsrv.nl/?url=' +
-        encodeURIComponent('https://image.tmdb.org/t/p/w1280' + img) +
-        '&bg=black&blur=3';
+    return r.json();
 
-      var bg = document.getElementById('loader-bg');
+  })
 
-      var preload = new Image();
+  .then(function (d) {
 
-      preload.onload = function() {
-        bg.style.backgroundImage = 'url(' + url + ')';
-        bg.style.opacity = '1';
-      };
+    var img = d.backdrop_path || d.poster_path;
 
-      preload.src = url;
-    })
-    .catch(function() {});
+    if (!img) return;
+
+    var url =
+      'https://wsrv.nl/?url=' +
+      encodeURIComponent(
+        'https://image.tmdb.org/t/p/w1280' + img
+      ) +
+      '&bg=black&blur=3';
+
+    var bg = document.getElementById('loader-bg');
+
+    var preload = new Image();
+
+    preload.onload = function () {
+
+      bg.style.backgroundImage = 'url(' + url + ')';
+
+      bg.style.opacity = '1';
+
+    };
+
+    preload.src = url;
+
+  })
+
+  .catch(function () {});
 }
+
+/* No ID */
 
 if (!id) {
 
   clearInterval(msgTimer);
 
   document.getElementById('loader').style.display = 'none';
+
   document.getElementById('usage').style.display = 'flex';
 
 } else {
 
   loadBackdrop(id, !!s);
 
-  var api = '/api?' + (
-    s
-      ? 'id=' + id + '&s=' + s + '&e=' + (e || '1')
-      : 'id=' + id
-  );
+  var api =
+    '/api?' +
+    (
+      s
+        ? 'id=' + id + '&s=' + s + '&e=' + (e || '1')
+        : 'id=' + id
+    );
 
   fetch(api)
-    .then(function(r) { return r.json(); })
-    .then(function(d) {
 
-      if (d.error) return showErr(d.error);
+    .then(function (r) {
+
+      return r.json();
+
+    })
+
+    .then(function (d) {
+
+      if (d.error) {
+
+        return showErr(d.error);
+
+      }
 
       play(d.url);
 
     })
-    .catch(function(err) {
+
+    .catch(function (err) {
+
       showErr(err.message);
+
     });
 }
+
+/* Player */
 
 function play(rawUrl) {
 
   var src = '/api?url=' + encodeURIComponent(rawUrl);
 
   const art = new Artplayer({
+
     container: '#artplayer',
+
     url: src,
+
     type: 'm3u8',
 
-    autoplay: true,
-    autoSize: true,
+    /* Size */
+
+    autoSize: false,
+
+    autoMini: true,
+
     fullscreen: true,
+
     fullscreenWeb: true,
+
     pip: true,
+
+    /* Premium Features */
+
+    autoplay: true,
+
     setting: true,
+
     playbackRate: true,
+
     aspectRatio: true,
+
     screenshot: true,
+
     hotkey: true,
+
     airplay: true,
+
     mutex: true,
 
+    fastForward: true,
+
+    lock: true,
+
+    flip: true,
+
+    subtitleOffset: true,
+
+    miniProgressBar: true,
+
+    /* Theme */
+
+    theme: '#ffffff',
+
+    /* Video Attributes */
+
+    moreVideoAttr: {
+
+      crossOrigin: 'anonymous',
+
+      playsInline: true,
+
+    },
+
+    /* Custom HLS */
+
     customType: {
+
       m3u8: function(video, url) {
 
         if (Hls.isSupported()) {
 
-          const hls = new Hls();
+          const hls = new Hls({
+
+            enableWorker: true,
+
+            lowLatencyMode: true,
+
+          });
 
           hls.loadSource(url);
 
           hls.attachMedia(video);
 
-          hls.on(Hls.Events.MANIFEST_PARSED, function() {
+          hls.on(
+            Hls.Events.MANIFEST_PARSED,
 
-            showPlayer();
+            function () {
 
-            video.play().catch(function(){});
+              showPlayer();
 
-          });
+              video.play().catch(function(){});
 
-          hls.on(Hls.Events.ERROR, function(_, data) {
-
-            if (data.fatal) {
-              showErr(data.details);
             }
+          );
 
-          });
+          hls.on(
+            Hls.Events.ERROR,
 
-        } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+            function (_, data) {
+
+              if (data.fatal) {
+
+                showErr(data.details);
+
+              }
+
+            }
+          );
+
+        } else if (
+          video.canPlayType(
+            'application/vnd.apple.mpegurl'
+          )
+        ) {
 
           video.src = url;
 
-          video.addEventListener('canplay', function() {
+          video.addEventListener(
 
-            showPlayer();
+            'canplay',
 
-            video.play().catch(function(){});
+            function () {
 
-          }, { once: true });
+              showPlayer();
 
+              video.play().catch(function(){});
+
+            },
+
+            { once: true }
+
+          );
         }
-
       }
     }
   });
+
+  /* Force Fullscreen Size */
+
+  art.on('ready', function () {
+
+    const player =
+      document.querySelector('.art-video-player');
+
+    if (player) {
+
+      player.style.width = '100vw';
+
+      player.style.height = '100vh';
+
+    }
+
+  });
 }
+
 </script>
 
 </body>
