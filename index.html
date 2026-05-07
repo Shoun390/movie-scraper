@@ -5,8 +5,9 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Stream</title>
 
-<link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css" />
-<script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/artplayer/5.1.1/artplayer.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/artplayer/5.1.1/artplayer.min.js"></script>
+
 <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 
 <style>
@@ -30,12 +31,28 @@ html, body { width: 100%; height: 100%; background: #000; font-family: system-ui
   animation: spin .9s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
-#loader-text { position: relative; z-index: 1; font-size: .95rem; color: rgba(255,255,255,.6); letter-spacing: .04em; text-shadow: 0 1px 4px #000; }
+
+#loader-text {
+  position: relative;
+  z-index: 1;
+  font-size: .95rem;
+  color: rgba(255,255,255,.6);
+  letter-spacing: .04em;
+  text-shadow: 0 1px 4px #000;
+}
 
 /* Player Container */
-#player { position: fixed; inset: 0; display: none; background: #000; }
-/* Plyr setup to fill screen */
-.plyr { height: 100vh !important; width: 100vw !important; }
+#player {
+  position: fixed;
+  inset: 0;
+  display: none;
+  background: #000;
+}
+
+#artplayer {
+  width: 100vw;
+  height: 100vh;
+}
 
 #usage {
   position: fixed; inset: 0; display: none; flex-direction: column;
@@ -49,12 +66,27 @@ html, body { width: 100%; height: 100%; background: #000; font-family: system-ui
   align-items: center; justify-content: center; text-align: center; background: #000;
 }
 #err-title { font-size: 2.4rem; font-weight: 700; color: #fff; margin-bottom: 18px; }
-#err-link { font-size: 1.1rem; color: #60a5fa; text-decoration: underline; cursor: pointer; }
+
+#err-link {
+  font-size: 1.1rem;
+  color: #60a5fa;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
 #err-link:hover { color: #93c5fd; }
+
 #err-detail {
-  position: absolute; bottom: 28px; left: 50%; transform: translateX(-50%);
-  font-size: .78rem; color: rgba(255,255,255,.35); white-space: nowrap;
-  max-width: 90vw; overflow: hidden; text-overflow: ellipsis;
+  position: absolute;
+  bottom: 28px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: .78rem;
+  color: rgba(255,255,255,.35);
+  white-space: nowrap;
+  max-width: 90vw;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 </style>
 </head>
@@ -81,26 +113,37 @@ html, body { width: 100%; height: 100%; background: #000; font-family: system-ui
 </div>
 
 <div id="player">
-  <video id="v" playsinline controls crossorigin></video>
+  <div id="artplayer"></div>
 </div>
 
 <script>
 var TMDB_KEY = '3a73619bbb8fc6d47742d1b5b2b707b5';
 
 var MESSAGES = [
-  'Loading stream...', 'Contacting the mothership...', 'Bribing the servers...',
-  'Untangling the cables...', 'Asking nicely...', 'Decoding the matrix...',
-  'Almost there...', 'Summoning bandwidth...', 'Waking up the interns...'
+  'Loading stream...',
+  'Contacting the mothership...',
+  'Bribing the servers...',
+  'Untangling the cables...',
+  'Asking nicely...',
+  'Decoding the matrix...',
+  'Almost there...',
+  'Summoning bandwidth...',
+  'Waking up the interns...'
 ];
+
 var msgEl = document.getElementById('loader-text');
 var msgIdx = 0;
+
 var msgTimer = setInterval(function() {
   msgIdx = (msgIdx + 1) % MESSAGES.length;
   msgEl.textContent = MESSAGES[msgIdx];
 }, 2200);
 
 var p = new URLSearchParams(location.search);
-var id = p.get('id'), s = p.get('s'), e = p.get('e');
+
+var id = p.get('id'),
+    s = p.get('s'),
+    e = p.get('e');
 
 function showPlayer() {
   clearInterval(msgTimer);
@@ -110,75 +153,147 @@ function showPlayer() {
 
 function showErr(msg) {
   clearInterval(msgTimer);
+
   document.getElementById('loader').style.display = 'none';
   document.getElementById('err').style.display = 'flex';
+
   document.getElementById('err-detail').textContent = msg || '';
+
   var vidsrcUrl = s
     ? 'https://vidsrc.xyz/embed/tv?tmdb=' + id + '&season=' + s + '&episode=' + (e || '1')
     : 'https://vidsrc.xyz/embed/movie?tmdb=' + id;
+
   document.getElementById('err-link').href = vidsrcUrl;
 }
 
 function loadBackdrop(id, isTv) {
   var type = isTv ? 'tv' : 'movie';
+
   fetch('https://api.themoviedb.org/3/' + type + '/' + id + '?api_key=' + TMDB_KEY)
     .then(function(r) { return r.json(); })
     .then(function(d) {
+
       var img = d.backdrop_path || d.poster_path;
       if (!img) return;
-      var url = 'https://wsrv.nl/?url=' + encodeURIComponent('https://image.tmdb.org/t/p/w1280' + img) + '&bg=black&blur=3';
+
+      var url =
+        'https://wsrv.nl/?url=' +
+        encodeURIComponent('https://image.tmdb.org/t/p/w1280' + img) +
+        '&bg=black&blur=3';
+
       var bg = document.getElementById('loader-bg');
+
       var preload = new Image();
-      preload.onload = function() { bg.style.backgroundImage = 'url(' + url + ')'; bg.style.opacity = '1'; };
+
+      preload.onload = function() {
+        bg.style.backgroundImage = 'url(' + url + ')';
+        bg.style.opacity = '1';
+      };
+
       preload.src = url;
     })
     .catch(function() {});
 }
 
 if (!id) {
+
   clearInterval(msgTimer);
+
   document.getElementById('loader').style.display = 'none';
   document.getElementById('usage').style.display = 'flex';
+
 } else {
+
   loadBackdrop(id, !!s);
-  var api = '/api?' + (s ? 'id='+id+'&s='+s+'&e='+(e||'1') : 'id='+id);
+
+  var api = '/api?' + (
+    s
+      ? 'id=' + id + '&s=' + s + '&e=' + (e || '1')
+      : 'id=' + id
+  );
+
   fetch(api)
     .then(function(r) { return r.json(); })
     .then(function(d) {
+
       if (d.error) return showErr(d.error);
+
       play(d.url);
+
     })
-    .catch(function(err) { showErr(err.message); });
+    .catch(function(err) {
+      showErr(err.message);
+    });
 }
 
 function play(rawUrl) {
-  var src = '/api?url=' + encodeURIComponent(rawUrl);
-  var video = document.getElementById('v');
-  
-  // Initialize Plyr
-  const player = new Plyr(video, {
-    autoplay: true,
-    fullscreen: { enabled: true, fallback: true, iosNative: true },
-    keyboard: { focused: true, global: true }
-  });
 
-  if (Hls.isSupported()) {
-    const hls = new Hls();
-    hls.loadSource(src);
-    hls.attachMedia(video);
-    hls.on(Hls.Events.MANIFEST_PARSED, function() {
-      showPlayer();
-      player.play().catch(function(){});
-    });
-    hls.on(Hls.Events.ERROR, function(_, d) {
-      if (d.fatal) showErr(d.details);
-    });
-  } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-    video.src = src;
-    video.addEventListener('canplay', showPlayer, { once: true });
-    player.play().catch(function(){});
-  }
+  var src = '/api?url=' + encodeURIComponent(rawUrl);
+
+  const art = new Artplayer({
+    container: '#artplayer',
+    url: src,
+    type: 'm3u8',
+
+    autoplay: true,
+    autoSize: true,
+    fullscreen: true,
+    fullscreenWeb: true,
+    pip: true,
+    setting: true,
+    playbackRate: true,
+    aspectRatio: true,
+    screenshot: true,
+    hotkey: true,
+    airplay: true,
+    mutex: true,
+
+    customType: {
+      m3u8: function(video, url) {
+
+        if (Hls.isSupported()) {
+
+          const hls = new Hls();
+
+          hls.loadSource(url);
+
+          hls.attachMedia(video);
+
+          hls.on(Hls.Events.MANIFEST_PARSED, function() {
+
+            showPlayer();
+
+            video.play().catch(function(){});
+
+          });
+
+          hls.on(Hls.Events.ERROR, function(_, data) {
+
+            if (data.fatal) {
+              showErr(data.details);
+            }
+
+          });
+
+        } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+
+          video.src = url;
+
+          video.addEventListener('canplay', function() {
+
+            showPlayer();
+
+            video.play().catch(function(){});
+
+          }, { once: true });
+
+        }
+
+      }
+    }
+  });
 }
 </script>
+
 </body>
 </html>
